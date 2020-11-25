@@ -1,9 +1,7 @@
-package common
+package raft
 
 import (
-   "fmt"
-   "net/rpc"
-   "time"
+	
 )
 
 type Entry struct {
@@ -18,6 +16,8 @@ type State struct {
 	CurrentTerm int
 	VotedFor int
 	Log []Entry
+
+	State string
 
 	// Volatile state on all servers
 	CommitIndex int // Initialized to zero
@@ -36,7 +36,7 @@ type appendEntriesResponse struct {
 }
 
 // Entry represents the request the leader asks to append
-type Entry struct {
+type AppEntry struct {
 	Term int
 	LeaderID int
 	PrevLogIndex int
@@ -56,7 +56,7 @@ type ReqVote struct {
 
 // requestVoteResponse represents the response to a requestVote RPC.
 type requestVoteResponse struct {
-	Term        uint64 `json:"term"`
+	Term        int `json:"term"`
 	VoteGranted bool   `json:"vote_granted"`
 	Reason      string
 }
