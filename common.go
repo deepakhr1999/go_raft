@@ -1,7 +1,7 @@
 package raft
 
 import (
-	
+	"time"
 )
 
 type Entry struct {
@@ -14,14 +14,18 @@ type Entry struct {
 type State struct {
 	// Persistant state on all servers
 	CurrentTerm int
-	VotedFor int
+	VotedFor string
 	Log []Entry
-
 	State string
+	CandidateID string
 
 	// Volatile state on all servers
 	CommitIndex int // Initialized to zero
 	LastApplied int // Initialized to zero
+	Heartbeat time.Ticker
+
+	// Volatile among candidates
+	ElectionTimeout time.Ticker
 
 	// Volatile state on leaders
 	NextIndex []int
@@ -38,7 +42,7 @@ type appendEntriesResponse struct {
 // Entry represents the request the leader asks to append
 type AppEntry struct {
 	Term int
-	LeaderID int
+	LeaderID string
 	PrevLogIndex int
 	PrevLogTerm int
 	Entries []Entry
@@ -49,7 +53,7 @@ type AppEntry struct {
 // receive the heartbeat Tick.
 type ReqVote struct {
 	Term         int `json:"term"`
-	CandidateID  int `json:"candidate_id"`
+	CandidateID  string `json:"candidate_id"`
 	LastLogIndex int `json:"last_log_index"`
 	LastLogTerm  int `json:"last_log_term"`
 }
