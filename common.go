@@ -1,4 +1,4 @@
-package raft
+package main
 
 import (
 	"time"
@@ -33,7 +33,7 @@ type State struct {
 }
 
 // appendEntriesResponse represents the response to an appendEntries RPC.
-type appendEntriesResponse struct {
+type AppendEntriesResponse struct {
 	Term    int `json:"term"`
 	Success bool   `json:"success"`
 	Reason  string
@@ -59,7 +59,7 @@ type ReqVote struct {
 }
 
 // requestVoteResponse represents the response to a requestVote RPC.
-type requestVoteResponse struct {
+type RequestVoteResponse struct {
 	Term        int `json:"term"`
 	VoteGranted bool   `json:"vote_granted"`
 	Reason      string

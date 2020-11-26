@@ -1,4 +1,4 @@
-package raft
+package main
 
 import (
    "fmt"
@@ -23,6 +23,7 @@ var ips = []string{
 	"127.0.0.1:8080",
 	"127.0.0.1:9090",
 	"127.0.0.1:7171",
+	"127.0.0.1:8181",
 }
 
 func (ServerState *State) ResetHeartbeat() {
@@ -36,6 +37,7 @@ func (ServerState *State) ResetElectionTimeout() {
 func (ServerState *State) CheckHeartbeat() {
 	for _ = range ServerState.Heartbeat.C {
 		if ServerState.State == follower {
+			fmt.Println("I AM FOLLOWER", ServerState.CandidateID)
 			ServerState.State = candidate
 			ServerState.ResetElectionTimeout()
 		}
@@ -44,8 +46,10 @@ func (ServerState *State) CheckHeartbeat() {
 }
 
 func (ServerState *State) CheckElectionTimeout() {
+	time.Sleep(15 * time.Second)
 	for _ = range ServerState.ElectionTimeout.C {
 		if ServerState.State == candidate {
+			fmt.Println("I AM CANDIDATE", ServerState.CandidateID)
 			ServerState.CurrentTerm = ServerState.CurrentTerm + 1
 			ServerState.VotedFor = ServerState.CandidateID
 			ServerState.ResetElectionTimeout()
@@ -62,9 +66,9 @@ func (ServerState *State) CheckElectionTimeout() {
 			totVotes := 0
 			for _, ip := range ips {
 				client, _ := rpc.DialHTTP("tcp", ip)
-				var response requestVoteResponse
+				var response RequestVoteResponse
 
-				// TODO: Need to change this to client.Go and make it asynchronous
+				// TODO: Need to change this to client.Go() and make it asynchronous
 				_ = client.Call("State.HandleRequestVote",
 								 request,
 								 &response)
@@ -88,8 +92,10 @@ func (ServerState *State) GatherCheck() {
 }
 
 func (ServerState *State) SendHeartbeat() {
+	time.Sleep(15 * time.Second)
 	for{
 		if ServerState.State == leader {
+			fmt.Println("I AM LEADER", ServerState.CandidateID)
 			// Heartbeat with no entries
 			var entries []Entry
 			// Instance of AppEntry
@@ -105,7 +111,7 @@ func (ServerState *State) SendHeartbeat() {
 			// implement for loop to send request
 			for _, ip := range ips {
 				client, _ := rpc.DialHTTP("tcp", ip)
-				var response appendEntriesResponse
+				var response AppendEntriesResponse
 
 				// TODO: Need to change this to client.Go and make it asynchronous
 				_ = client.Call("State.HandleAppendEntries",
@@ -116,7 +122,7 @@ func (ServerState *State) SendHeartbeat() {
 	}
 }
 
-func (ServerState *State) HandleRequestVote(args *ReqVote, response *requestVoteResponse) error {
+func (ServerState *State) HandleRequestVote(args *ReqVote, response *RequestVoteResponse) error {
 
 	// If the request is from an old term, reject
 	if args.Term < ServerState.CurrentTerm {
@@ -170,7 +176,7 @@ func (ServerState *State) HandleRequestVote(args *ReqVote, response *requestVote
 
 
 // stepDown means you need to: s.leader=r.LeaderID, s.state.Set(Follower).
-func (ServerState *State) HandleAppendEntries(args *AppEntry, response *appendEntriesResponse) error {
+func (ServerState *State) HandleAppendEntries(args *AppEntry, response *AppendEntriesResponse) error {
 	
 	// If the request is from an old term, reject
 	if ServerState.CurrentTerm > args.Term {
@@ -274,15 +280,6 @@ func main() {
 
 	rpc.HandleHTTP()
 
-	err := http.ListenAndServe(":8098", nil)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
-	if ServerState.State == follower {
-
-	}
-
 	// Does everything a follower has to do
 	go ServerState.CheckHeartbeat()
 
@@ -291,6 +288,11 @@ func main() {
 	
 	// Does everything a leader has to do
 	go ServerState.SendHeartbeat()
+
+	err := http.ListenAndServe(os.Args[2], nil)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 
 
 	/*
