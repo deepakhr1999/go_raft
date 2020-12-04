@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
-	"net/rpc"
+	// "net/rpc"
 	"os"
+	"github.com/DistributedClocks/GoVector/govec"
+	"github.com/DistributedClocks/GoVector/govec/vrpc"
 )
 
 type ClientMessgaeResponse struct {
@@ -18,9 +20,15 @@ var ips = []string{
 	"127.0.0.1:8181",
 }
 
+var options = govec.GetDefaultLogOptions()
+var logger = govec.InitGoVector("client", "client", govec.GetDefaultConfig())
+
 func main() {
 	for _, ip := range ips {
-		client, _ := rpc.DialHTTP("tcp", ip)
+		client, err := vrpc.RPCDial("tcp", ip, logger, options)
+		if err!=nil{
+			continue
+		}
 
 		var response ClientMessgaeResponse
 

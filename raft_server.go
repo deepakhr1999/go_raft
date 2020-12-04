@@ -296,7 +296,13 @@ func (ServerState *State) HandleRequestVote(args *ReqVote, response *RequestVote
 
 // stepDown means you need to: s.leader=r.LeaderID, s.state.Set(Follower).
 func (ServerState *State) HandleAppendEntries(args *AppEntry, response *AppendEntriesResponse) error {
-
+	// if I leader and my heart beat then reject haha
+	if ServerState.CandidateID == args.LeaderID && len(args.Entries) == 0 {
+		response.Term = ServerState.CurrentTerm
+		response.Success = false
+		response.Reason = fmt.Sprintf("I reject my heart beat")
+		return nil
+	}
 	// If the request is from an old term, reject
 	if ServerState.CurrentTerm > args.Term {
 		response.Term = ServerState.CurrentTerm
