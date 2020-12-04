@@ -7,6 +7,6 @@ echo Starting Raft Cluster
 for i in {1..5}
 do
     node=${ports[$i-1]}
-    ./go_raft $i :$node > out/${node}.txt &
+    ./go_raft $i :$node > app/${node}.txt &
     echo Started node on port $node
 done

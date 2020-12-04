@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GORAFT</title>
+    <script>
+        async function bring(port){
+            url = `http://localhost:5000/file/${port}`
+            return new Promise((resolve, reject)=>{
+                var http = new XMLHttpRequest();
+                http.open("GET", url, true);
+                // http.setRequestHeader('Content-type', 'application/json');
+
+                http.onreadystatechange = function() {
+                    try{
+                        if(http.readyState == 4 && http.status == 200) 
+                            resolve(http.responseText)            
+                    }catch(err){
+                        reject(err)
+                    }
+                }
+                http.send()
+            })
+        }
+    </script>
+    <style>
+        h1{
+            margin: 1em auto;
+            width: 100%;
+            text-align: center;
+        }
+        .display{
+            display: flex;
+            flex-wrap: wrap;
+        }
+        pre{
+            padding: 1em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dashboard</h1>
+    <div class="display">
+        <pre id='7070'></pre>
+        <pre id='7171'></pre>
+        <pre id='8080'></pre>
+        <pre id='8181'></pre>
+        <pre id='9090'></pre>
+    </div>
+    <script>
+        const eventLoop = () => {
+            '7070 7171 8080 8181 9090'.split(' ').forEach(port => {
+                bring(port)
+                .then(text => {
+                    document.getElementById(port).innerHTML = text
+                })
+            })
+        }
+
+        setInterval(eventLoop, 500)
+    </script>
+</body>
+</html>
