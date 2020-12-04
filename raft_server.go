@@ -75,7 +75,10 @@ func (ServerState *State) ResetHeartbeat(args *SafeDummyType, response *SafeDumm
 
 // ResetElectionTimeout creates new timer for election timeout
 func (ServerState *State) ResetElectionTimeout(args *SafeDummyType, response *SafeDummyType) error {
-	ServerState.ElectionTimeout = *time.NewTicker(time.Duration(rand.Intn(6)+1) * time.Second)
+	// anarchy problem is solved using randomness
+	// sampling from the millisecond realm allows greater variation
+	randTimeoutInMilliSeconds := rand.Intn(6000-200) + 200
+	ServerState.ElectionTimeout = *time.NewTicker(time.Duration(randTimeoutInMilliSeconds) * time.Millisecond)
 	return nil
 }
 
@@ -340,9 +343,13 @@ func (ServerState *State) HandleAppendEntries(args *AppEntry, response *AppendEn
 }
 
 func main() {
-
+	/*
+		There is a case where when a leader is dead,
+		all followers rise to candidates and vote for themselves.
+		This leads to anarchy.
+	*/
+	rand.Seed(time.Now().UTC().UnixNano()) // fix for anarchy is randomness
 	// Include all variables for server state
-	// TODO: Improve naming convention
 	var MyLog []Entry
 	nextIndex := []int{1, 1, 1, 1, 1}
 	matchIndex := []int{0, 0, 0, 0, 0}
