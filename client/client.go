@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-    "net/rpc"
+	"net/rpc"
+	"os"
 )
 
 type ClientMessgaeResponse struct {
@@ -25,7 +26,7 @@ func main() {
 
 		// TODO: Need to change this to client.Go and make it asynchronous
 		_ = client.Call("State.ClientMessage",
-							"request",
+							os.Args[1],
 							&response)
 		_ = client.Close()
 		fmt.Println(response.Response)

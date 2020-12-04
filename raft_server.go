@@ -27,6 +27,31 @@ var ips = []string{
 	"127.0.0.1:7171",
 	"127.0.0.1:8181",
 }
+var writeTicker = *time.NewTicker(30 * time.Second)
+
+
+func (ServerState *State) WriteFile() {
+    for _ = range writeTicker.C {
+		err := os.Remove("test" + ServerState.CandidateID + ".txt") 
+		if err != nil {
+			fmt.Println(err)
+		}
+		f, err := os.Create("test" + ServerState.CandidateID + ".txt")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		for _, entry := range ServerState.Log {
+			_, err = f.WriteString(entry.Content + "\n")
+			if err != nil {
+				fmt.Println(err)
+				f.Close()
+				return
+			}
+		}
+		f.Close()
+	}
+}
 
 func (ServerState *State) ResetHeartbeat() {
     ServerState.Heartbeat = *time.NewTicker(6 * time.Second)
@@ -113,20 +138,25 @@ func (ServerState *State) SendHeartbeat() {
 			// Heartbeat with no entries
 			var entries []Entry
 			// Instance of AppEntry
-			request := AppEntry{
-							Term:ServerState.CurrentTerm,
-							LeaderID:ServerState.CandidateID,
-							PrevLogIndex:0,
-							PrevLogTerm:0,
-							Entries:entries,
-							LeaderCommit:0,
-						}
+			term := 0
+			if len(ServerState.Log) != 0 {
+				term = ServerState.Log[len(ServerState.Log) - 1].Term
+			}
 
 			// implement for loop to send request
 			for _, ip := range ips {
 				client, err := rpc.DialHTTP("tcp", ip)
 				if err != nil {
 					continue
+				}
+
+				request := AppEntry{
+						Term:ServerState.CurrentTerm,
+						LeaderID:ServerState.CandidateID,
+						PrevLogIndex:len(ServerState.Log) - 1,
+						PrevLogTerm:term,
+						Entries:entries,
+						LeaderCommit:ServerState.CommitIndex,
 				}
 
 				var response AppendEntriesResponse
@@ -150,26 +180,24 @@ func (ServerState *State) ClientMessage(args *string, response *ClientMessgaeRes
 	}
 
 	entry := Entry{
-		Content:"request",
+		Content:*args,
 		Index:len(ServerState.Log),
 		Term:ServerState.CurrentTerm,
 		Commited:false}
-
-	ServerState.Log = append(ServerState.Log, entry)
+	EntryArr := []Entry{}
+	EntryArr = append(EntryArr, entry)
 	
 	term := 0
-	if len(ServerState.Log) - 1 == 0 {
-		term = 0
-	} else {
-		term = ServerState.Log[len(ServerState.Log) - 2].Term
+	if len(ServerState.Log) != 0 {
+		term = ServerState.Log[len(ServerState.Log) - 1].Term
 	}
 
 	request := AppEntry{
 					Term:ServerState.CurrentTerm,
 					LeaderID:ServerState.CandidateID,
-					PrevLogIndex:len(ServerState.Log) - 2,
+					PrevLogIndex:len(ServerState.Log) - 1,
 					PrevLogTerm:term,
-					Entries:ServerState.Log,
+					Entries:EntryArr,
 					LeaderCommit:ServerState.CommitIndex,
 				}
 
@@ -244,7 +272,6 @@ func (ServerState *State) HandleRequestVote(args *ReqVote, response *RequestVote
 
 	// If candidate log isn't up-to-date, don't vote
 	if ServerState.CommitIndex > args.LastLogIndex {
-		fmt.Println("LOG IS FUCKED")
 		response.Term = ServerState.CurrentTerm
 		response.VoteGranted = false
 		response.Reason = "Log is not up to date"
@@ -336,7 +363,7 @@ func (ServerState *State) HandleAppendEntries(args *AppEntry, response *AppendEn
 
 	// If all good till now change state of the Server
 	ServerState.CommitIndex = args.LeaderCommit
-	ServerState.LastApplied = pos + len(args.Entries)
+	ServerState.LastApplied = len(ServerState.Log)
 	response.Term = ServerState.CurrentTerm
 	response.Success = true
 	response.Reason = "SUCCESS"
@@ -387,6 +414,8 @@ func main() {
 	
 	// Does everything a leader has to do
 	go ServerState.SendHeartbeat()
+
+	go ServerState.WriteFile()
 
 	err := http.ListenAndServe(os.Args[2], nil)
 	if err != nil {
