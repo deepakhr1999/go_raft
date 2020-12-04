@@ -144,7 +144,7 @@ func (ServerState *State) SendHeartbeat() {
 // Client Sends this
 func (ServerState *State) ClientMessage(args *string, response *ClientMessgaeResponse) error {
 	if ServerState.State != leader {
-		response.Response = "FALSE"
+		response.Response = "NOT LEADER"
 		fmt.Println("request -- leader")
 		return nil
 	}
@@ -197,6 +197,8 @@ func (ServerState *State) ClientMessage(args *string, response *ClientMessgaeRes
 		fmt.Println("LEADER")
 		ServerState.CommitIndex ++
 		return nil
+	} else {
+		response.Response = "FALSE NO VOTES"
 	}
 	return nil
 }
