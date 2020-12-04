@@ -48,6 +48,7 @@ func main() {
 		Pass:   os.Args[3],
 	}
 
+	connRefused := true
 	for _, ip := range ips {
 		client, err := vrpc.RPCDial("tcp", ip, logger, options)
 		if err != nil {
@@ -59,6 +60,14 @@ func main() {
 		// TODO: Need to change this to client.Go and make it asynchronous
 		_ = client.Call("State.ClientMessage", args, &response)
 		_ = client.Close()
-		fmt.Println(response.Response)
+
+		if response.Response != "NOT LEADER" {
+			connRefused = false
+			fmt.Println(response.Response)
+		}
+	}
+
+	if connRefused {
+		fmt.Println("Couldn't connect to any nodes on raft")
 	}
 }
