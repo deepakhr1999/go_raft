@@ -214,6 +214,9 @@ func (ServerState *State) HandleAppendEntries(args *AppEntry, response *AppendEn
 
 	// ========================= DEBUG ======================
 	fmt.Println(stepDown, ServerState.CurrentTerm)
+	if stepDown == true {
+		ServerState.State = follower
+	}
 	
 	// TODO: Implement timer election
 	ServerState.ResetHeartbeat()

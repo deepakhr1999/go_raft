@@ -64,3 +64,8 @@ type RequestVoteResponse struct {
 	VoteGranted bool   `json:"vote_granted"`
 	Reason      string
 }
+
+// 
+type ClientMessgaeResponse struct {
+	Response string
+}
