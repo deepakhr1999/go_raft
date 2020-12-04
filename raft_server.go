@@ -1,13 +1,17 @@
 package main
 
 import (
-   "fmt"
-   "net/rpc"
-   "net/http"
-   "time"
-   "math/rand"
-   "os"
-   "strconv"
+	"log"
+	"fmt"
+	"math/rand"
+	// "net/http"
+	"net"
+	"net/rpc"
+	"os"
+	"strconv"
+	"time"
+	"github.com/DistributedClocks/GoVector/govec"
+	"github.com/DistributedClocks/GoVector/govec/vrpc"
 )
 
 const (
@@ -28,11 +32,12 @@ var ips = []string{
 	"127.0.0.1:8181",
 }
 var writeTicker = *time.NewTicker(30 * time.Second)
-
+var options = govec.GetDefaultLogOptions()
+var logger = govec.InitGoVector("server"+os.Args[2], "node"+os.Args[2], govec.GetDefaultConfig())
 
 func (ServerState *State) WriteFile() {
-    for _ = range writeTicker.C {
-		err := os.Remove("test" + ServerState.CandidateID + ".txt") 
+	for _ = range writeTicker.C {
+		err := os.Remove("test" + ServerState.CandidateID + ".txt")
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -54,11 +59,11 @@ func (ServerState *State) WriteFile() {
 }
 
 func (ServerState *State) ResetHeartbeat() {
-    ServerState.Heartbeat = *time.NewTicker(6 * time.Second)
+	ServerState.Heartbeat = *time.NewTicker(6 * time.Second)
 }
 
 func (ServerState *State) ResetElectionTimeout() {
-    ServerState.ElectionTimeout = *time.NewTicker(time.Duration(rand.Intn(6) + 1) * time.Second)
+	ServerState.ElectionTimeout = *time.NewTicker(time.Duration(rand.Intn(6)+1) * time.Second)
 }
 
 func (ServerState *State) CheckHeartbeat() {
@@ -69,7 +74,7 @@ func (ServerState *State) CheckHeartbeat() {
 			ServerState.ResetElectionTimeout()
 		}
 	}
-    
+
 }
 
 func (ServerState *State) CheckElectionTimeout() {
@@ -86,19 +91,19 @@ func (ServerState *State) CheckElectionTimeout() {
 			if len(ServerState.Log) == 0 {
 				term = 0
 			} else {
-				term = ServerState.Log[len(ServerState.Log) - 1].Term
+				term = ServerState.Log[len(ServerState.Log)-1].Term
 			}
 			request := ReqVote{
-							Term:ServerState.CurrentTerm,
-							CandidateID:ServerState.CandidateID,
-							LastLogIndex:ServerState.CommitIndex,
-							LastLogTerm:term,
-						}
+				Term:         ServerState.CurrentTerm,
+				CandidateID:  ServerState.CandidateID,
+				LastLogIndex: ServerState.CommitIndex,
+				LastLogTerm:  term,
+			}
 
 			// implement for loop to send request
 			totVotes := 0
 			for _, ip := range ips {
-				client, err := rpc.DialHTTP("tcp", ip)
+				client, err := vrpc.RPCDial("tcp", ip, logger, options)
 				if err != nil {
 					continue
 				}
@@ -107,8 +112,8 @@ func (ServerState *State) CheckElectionTimeout() {
 
 				// TODO: Need to change this to client.Go() and make it asynchronous
 				_ = client.Call("State.HandleRequestVote",
-								 request,
-								 &response)
+					request,
+					&response)
 				// fmt.Println(response.VoteGranted, response.Reason, ServerState.CurrentTerm)
 				if response.VoteGranted {
 					totVotes++
@@ -132,7 +137,7 @@ func (ServerState *State) CheckElectionTimeout() {
 
 func (ServerState *State) SendHeartbeat() {
 	time.Sleep(15 * time.Second)
-	for{
+	for {
 		if ServerState.State == leader {
 			fmt.Println("I AM LEADER", ServerState.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
 			// Heartbeat with no entries
@@ -140,32 +145,32 @@ func (ServerState *State) SendHeartbeat() {
 			// Instance of AppEntry
 			term := 0
 			if len(ServerState.Log) != 0 {
-				term = ServerState.Log[len(ServerState.Log) - 1].Term
+				term = ServerState.Log[len(ServerState.Log)-1].Term
 			}
 
 			// implement for loop to send request
 			for _, ip := range ips {
-				client, err := rpc.DialHTTP("tcp", ip)
+				client, err := vrpc.RPCDial("tcp", ip, logger, options)
 				if err != nil {
 					continue
 				}
 
 				request := AppEntry{
-						Term:ServerState.CurrentTerm,
-						LeaderID:ServerState.CandidateID,
-						PrevLogIndex:len(ServerState.Log) - 1,
-						PrevLogTerm:term,
-						Entries:entries,
-						LeaderCommit:ServerState.CommitIndex,
+					Term:         ServerState.CurrentTerm,
+					LeaderID:     ServerState.CandidateID,
+					PrevLogIndex: len(ServerState.Log) - 1,
+					PrevLogTerm:  term,
+					Entries:      entries,
+					LeaderCommit: ServerState.CommitIndex,
 				}
 
 				var response AppendEntriesResponse
 
 				// TODO: Need to change this to client.Go and make it asynchronous
 				_ = client.Call("State.HandleAppendEntries",
-								 request,
-								 &response)
-				_ = client.Close()								 
+					request,
+					&response)
+				_ = client.Close()
 			}
 		}
 	}
@@ -180,31 +185,31 @@ func (ServerState *State) ClientMessage(args *string, response *ClientMessgaeRes
 	}
 
 	entry := Entry{
-		Content:*args,
-		Index:len(ServerState.Log),
-		Term:ServerState.CurrentTerm,
-		Commited:false}
+		Content:  *args,
+		Index:    len(ServerState.Log),
+		Term:     ServerState.CurrentTerm,
+		Commited: false}
 	EntryArr := []Entry{}
 	EntryArr = append(EntryArr, entry)
-	
+
 	term := 0
 	if len(ServerState.Log) != 0 {
-		term = ServerState.Log[len(ServerState.Log) - 1].Term
+		term = ServerState.Log[len(ServerState.Log)-1].Term
 	}
 
 	request := AppEntry{
-					Term:ServerState.CurrentTerm,
-					LeaderID:ServerState.CandidateID,
-					PrevLogIndex:len(ServerState.Log) - 1,
-					PrevLogTerm:term,
-					Entries:EntryArr,
-					LeaderCommit:ServerState.CommitIndex,
-				}
+		Term:         ServerState.CurrentTerm,
+		LeaderID:     ServerState.CandidateID,
+		PrevLogIndex: len(ServerState.Log) - 1,
+		PrevLogTerm:  term,
+		Entries:      EntryArr,
+		LeaderCommit: ServerState.CommitIndex,
+	}
 
 	// implement for loop to send request
 	ans := 0
 	for _, ip := range ips {
-		client, err := rpc.DialHTTP("tcp", ip)
+		client, err := vrpc.RPCDial("tcp", ip, logger, options)
 		if err != nil {
 			continue
 		}
@@ -213,17 +218,17 @@ func (ServerState *State) ClientMessage(args *string, response *ClientMessgaeRes
 
 		// TODO: Need to change this to client.Go and make it asynchronous
 		_ = client.Call("State.HandleAppendEntries",
-							request,
-							&response1)
+			request,
+			&response1)
 		_ = client.Close()
 		if response1.Success == true {
 			ans++
-		}					 
+		}
 	}
 	if ans > 2 {
 		response.Response = "TRUE " + strconv.Itoa(len(ServerState.Log))
 		fmt.Println("LEADER")
-		ServerState.CommitIndex ++
+		ServerState.CommitIndex++
 		return nil
 	} else {
 		response.Response = "FALSE NO VOTES"
@@ -268,7 +273,7 @@ func (ServerState *State) HandleRequestVote(args *ReqVote, response *RequestVote
 		return nil
 	}
 
-	// If you send yourseld the request, 
+	// If you send yourseld the request,
 
 	// If candidate log isn't up-to-date, don't vote
 	if ServerState.CommitIndex > args.LastLogIndex {
@@ -289,11 +294,9 @@ func (ServerState *State) HandleRequestVote(args *ReqVote, response *RequestVote
 	return nil
 }
 
-
-
 // stepDown means you need to: s.leader=r.LeaderID, s.state.Set(Follower).
 func (ServerState *State) HandleAppendEntries(args *AppEntry, response *AppendEntriesResponse) error {
-	
+
 	// If the request is from an old term, reject
 	if ServerState.CurrentTerm > args.Term {
 		response.Term = ServerState.CurrentTerm
@@ -301,7 +304,7 @@ func (ServerState *State) HandleAppendEntries(args *AppEntry, response *AppendEn
 		response.Reason = fmt.Sprintf("Term %d > %d", ServerState.CurrentTerm, args.Term)
 		return nil
 	}
-	
+
 	// If the request is from a newer term, reset our state
 	stepDown := false
 	if ServerState.CurrentTerm < args.Term {
@@ -311,7 +314,7 @@ func (ServerState *State) HandleAppendEntries(args *AppEntry, response *AppendEn
 		ServerState.VotedFor = noVote
 		stepDown = true
 	}
-	
+
 	// Special case for candidates: "While waiting for votes, a candidate may
 	// receive an appendEntries RPC from another server claiming to be leader.
 	// If the leader’s term (included in its RPC) is at least as large as the
@@ -328,7 +331,7 @@ func (ServerState *State) HandleAppendEntries(args *AppEntry, response *AppendEn
 	// ========================= DEBUG ======================
 	// fmt.Println(stepDown, ServerState.CurrentTerm)
 	fmt.Println("Recieved heartbeat from", args.LeaderID, ServerState.CurrentTerm, ServerState.CommitIndex)
-	
+
 	// TODO: Implement timer election
 	ServerState.ResetHeartbeat()
 
@@ -343,7 +346,7 @@ func (ServerState *State) HandleAppendEntries(args *AppEntry, response *AppendEn
 			continue
 		}
 		if ServerState.Log[pos].Index == args.PrevLogIndex {
-			if ServerState.Log[pos].Term != args.PrevLogTerm{
+			if ServerState.Log[pos].Term != args.PrevLogTerm {
 				response.Term = ServerState.CurrentTerm
 				response.Success = false
 				response.Reason = "Inconsistant"
@@ -353,8 +356,8 @@ func (ServerState *State) HandleAppendEntries(args *AppEntry, response *AppendEn
 	}
 
 	// Truncate from current position
-	if pos != 0 && pos + 1 < len(ServerState.Log) {
-		ServerState.Log = ServerState.Log[:pos + 1]
+	if pos != 0 && pos+1 < len(ServerState.Log) {
+		ServerState.Log = ServerState.Log[:pos+1]
 	}
 
 	// Append logs
@@ -370,6 +373,8 @@ func (ServerState *State) HandleAppendEntries(args *AppEntry, response *AppendEn
 	return nil
 }
 
+
+
 func main() {
 	
 	// Include all variables for server state
@@ -379,78 +384,89 @@ func main() {
 	matchIndex := []int{0, 0, 0, 0, 0}
 	ticker := *time.NewTicker(6 * time.Second)
 	ticker1 := *time.NewTicker(2 * time.Second)
-
-
+	
+	
+	
 	// Make new instance of State
 	ServerState := &State{
-		CurrentTerm:0,
-		VotedFor:"0",
-		Log:MyLog,
-		State:follower,
-		CandidateID:os.Args[1],
-
+		CurrentTerm: 0,
+		VotedFor:    "0",
+		Log:         MyLog,
+		State:       follower,
+		CandidateID: os.Args[1],
+		
 		// Volatile state on all servers
-		CommitIndex:0,
-		LastApplied:0,
-		Heartbeat:ticker,
-
+		CommitIndex: 0,
+		LastApplied: 0,
+		Heartbeat:   ticker,
+		
 		// Volatile among candidates
-		ElectionTimeout:ticker1,
-
-
+		ElectionTimeout: ticker1,
+		
 		// Volatile state on leaders
-		NextIndex:nextIndex,
-		MatchIndex:matchIndex}
+		NextIndex:  nextIndex,
+		MatchIndex: matchIndex}
+		
+	
+	server := rpc.NewServer()
 
-	rpc.Register(ServerState)
+	// rpc.Register(ServerState)
+	server.Register(ServerState)
 
-	rpc.HandleHTTP()
+	// rpc.HandleHTTP()
+	l, e := net.Listen("tcp", os.Args[2])
+	if e != nil {
+		log.Fatal("listen error:", e)
+	}
 
+
+	
 	// Does everything a follower has to do
 	go ServerState.CheckHeartbeat()
-
+	
 	// Does everything a candidate has to do
 	go ServerState.CheckElectionTimeout()
 	
 	// Does everything a leader has to do
 	go ServerState.SendHeartbeat()
-
+	
 	go ServerState.WriteFile()
+	
+	vrpc.ServeRPCConn(server, l, logger, options)
+	// err := http.ListenAndServe(os.Args[2], nil)
+	// if err != nil {
+		// 	fmt.Println(err.Error())
+		// }
+		
+		
+		/*
+		ServerState is FOLLOWER
+		
+		TODO:
+		if heart beat interval times out:
+		switch to CANDIDATE
+		wait for timeout
+		else:
+		do nothing
+		
+		ServerState is CANDIDATE
+		
+		TODO:
+		if not timeout:
+					Gather votes
+					if majority votes:
+						switch LEADER
+				else:
+					Increment currentTerm
+					Vote for self
+					Reset election timer
+					Send RequestVote
 
-	err := http.ListenAndServe(os.Args[2], nil)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
+		ServerState is LEADER
 
-
-	/*
-	ServerState is FOLLOWER
-
-	TODO: 
-			if heart beat interval times out:
-				switch to CANDIDATE
-				wait for timeout
-			else:
-				do nothing
-
-	ServerState is CANDIDATE
-
-	TODO:
-			if not timeout:
-				Gather votes
-				if majority votes:
-					switch LEADER
-			else:
-				Increment currentTerm
-				Vote for self
-				Reset election timer
-				Send RequestVote
-				
-	ServerState is LEADER
-
-	TODO:
-			send heart beat
-			print("I AM THE FUCKING LEADER")
+		TODO:
+				send heart beat
+				print("I AM THE FUCKING LEADER")
 
 	*/
 
