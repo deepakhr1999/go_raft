@@ -100,7 +100,6 @@ func (ServerState *State) CheckElectionTimeout(args *SafeDummyType, response *Sa
 	for range ServerState.ElectionTimeout.C {
 		if ServerState.State == candidate {
 			fmt.Printf("Node %s: Candidate, term: %d, comIdx: %d\n", ServerState.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
-			// fmt.Println("I AM CANDIDATE", ServerState.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
 			ServerState.CurrentTerm = ServerState.CurrentTerm + 1
 			ServerState.VotedFor = ServerState.CandidateID
 			ServerState.ResetElectionTimeout(&dummyArgs, &dummyResp)
@@ -160,7 +159,6 @@ func (ServerState *State) SendHeartbeat(args *SafeDummyType, response *SafeDummy
 	time.Sleep(15 * time.Second)
 	for {
 		if ServerState.State == leader {
-			// fmt.Println("I AM LEADER", ServerState.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
 			// Heartbeat with no entries
 			var entries []Entry
 			// Instance of AppEntry
@@ -278,7 +276,7 @@ func (ServerState *State) HandleAppendEntries(args *AppEntry, response *AppendEn
 
 	// If the request is from a newer term, reset our state
 	if ServerState.CurrentTerm < args.Term {
-		fmt.Println(ServerState.CurrentTerm, args.Term)
+		// fmt.Println(ServerState.CurrentTerm, args.Term)
 		ServerState.State = follower
 		ServerState.CurrentTerm = args.Term
 		ServerState.VotedFor = noVote
@@ -299,7 +297,6 @@ func (ServerState *State) HandleAppendEntries(args *AppEntry, response *AppendEn
 	}
 
 	// ========================= DEBUG ======================
-	// fmt.Println(stepDown, ServerState.CurrentTerm)
 	// fmt.Println("Recieved heartbeat from", args.LeaderID, ServerState.CurrentTerm, ServerState.CommitIndex)
 
 	ServerState.ResetHeartbeat(&dummyArgs, &dummyResp)
@@ -399,10 +396,6 @@ func main() {
 	go ServerState.WriteFile(&dummyArgs, &dummyResp)
 
 	vrpc.ServeRPCConn(server, l, logger, options)
-	// err := http.ListenAndServe(os.Args[2], nil)
-	// if err != nil {
-	// 	fmt.Println(err.Error())
-	// }
 
 	/*
 		ServerState is FOLLOWER
@@ -428,10 +421,6 @@ func main() {
 					Send RequestVote
 
 		ServerState is LEADER
-
-		TODO:
-				send heart beat
-				print("I AM THE FUCKING LEADER")
 
 	*/
 
