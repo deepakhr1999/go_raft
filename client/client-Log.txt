@@ -2,17 +2,21 @@ client {"client":1}
 Initialization Complete
 client {"client":2}
 Making RPC call
-client {"client":17, "server:8080":59630, "server:9090":12971, "server:7171":12971, "server:8181":12969, "server:7070":25090}
+client {"server:7070":26019, "server:8080":156066, "server:9090":26015, "server:7171":26015, "server:8181":26015, "client":17}
 Received RPC Call response from server
-client {"server:8080":59630, "server:9090":12971, "server:7171":12971, "server:8181":12969, "server:7070":25090, "client":18}
+client {"client":18, "server:7070":26019, "server:8080":156066, "server:9090":26015, "server:7171":26015, "server:8181":26015}
 Making RPC call
-client {"client":19, "server:8080":59630, "server:9090":12975, "server:7171":12971, "server:8181":12969, "server:7070":25090}
+client {"server:8080":156078, "server:9090":26017, "server:7171":26017, "server:8181":26015, "client":19, "server:7070":26019}
 Received RPC Call response from server
-client {"server:9090":12975, "server:7171":12971, "server:8181":12969, "server:7070":25090, "client":20, "server:8080":59630}
+client {"client":20, "server:7070":26019, "server:8080":156078, "server:9090":26017, "server:7171":26017, "server:8181":26015}
 Making RPC call
-client {"client":21, "server:8080":59630, "server:9090":12975, "server:7171":12975, "server:8181":12969, "server:7070":25092}
+client {"client":21, "server:7070":26019, "server:8080":156078, "server:9090":26019, "server:7171":26017, "server:8181":26015}
 Received RPC Call response from server
-client {"client":22, "server:8080":59630, "server:9090":12975, "server:7171":12975, "server:8181":12969, "server:7070":25092}
+client {"client":22, "server:7070":26019, "server:8080":156078, "server:9090":26019, "server:7171":26017, "server:8181":26015}
 Making RPC call
-client {"server:9090":12975, "server:7171":12975, "server:8181":12973, "server:7070":25094, "client":23, "server:8080":59630}
+client {"client":23, "server:7070":26021, "server:8080":156088, "server:9090":26021, "server:7171":26021, "server:8181":26017}
+Received RPC Call response from server
+client {"server:8181":26017, "client":24, "server:7070":26021, "server:8080":156088, "server:9090":26021, "server:7171":26021}
+Making RPC call
+client {"client":25, "server:7070":26021, "server:8080":156090, "server:9090":26021, "server:7171":26021, "server:8181":26020}
 Received RPC Call response from server
