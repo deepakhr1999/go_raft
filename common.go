@@ -77,3 +77,8 @@ type RequestVoteResponse struct {
 type ClientMessgaeResponse struct {
 	Response string
 }
+
+// SafeDummyType is never meant to be used, and is a placeholder for args
+type SafeDummyType struct {
+	Data string
+}

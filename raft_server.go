@@ -5,7 +5,6 @@ import (
 	"log"
 	"math/rand"
 
-	// "net/http"
 	"net"
 	"net/rpc"
 	"os"
@@ -36,8 +35,15 @@ var writeTicker = *time.NewTicker(30 * time.Second)
 var options = govec.GetDefaultLogOptions()
 var logger = govec.InitGoVector("server"+os.Args[2], "logs/node"+os.Args[2], govec.GetDefaultConfig())
 
+var dummyArgs = SafeDummyType{
+	Data: "dummy",
+}
+var dummyResp = SafeDummyType{
+	Data: "dummy",
+}
+
 // WriteFile write the logs to the file
-func (ServerState *State) WriteFile() {
+func (ServerState *State) WriteFile(args *SafeDummyType, response *SafeDummyType) error {
 	for range writeTicker.C {
 		err := os.Remove("test" + ServerState.CandidateID + ".txt")
 		if err != nil {
@@ -46,44 +52,47 @@ func (ServerState *State) WriteFile() {
 		f, err := os.Create("test" + ServerState.CandidateID + ".txt")
 		if err != nil {
 			fmt.Println(err)
-			return
+			return nil
 		}
 		for _, entry := range ServerState.Log {
 			_, err = f.WriteString(entry.Content + "\n")
 			if err != nil {
 				fmt.Println(err)
 				f.Close()
-				return
+				return nil
 			}
 		}
 		f.Close()
 	}
+	return nil
 }
 
 // ResetHeartbeat creates a new timer for hearbeat
-func (ServerState *State) ResetHeartbeat() {
+func (ServerState *State) ResetHeartbeat(args *SafeDummyType, response *SafeDummyType) error {
 	ServerState.Heartbeat = *time.NewTicker(6 * time.Second)
+	return nil
 }
 
 // ResetElectionTimeout creates new timer for election timeout
-func (ServerState *State) ResetElectionTimeout() {
+func (ServerState *State) ResetElectionTimeout(args *SafeDummyType, response *SafeDummyType) error {
 	ServerState.ElectionTimeout = *time.NewTicker(time.Duration(rand.Intn(6)+1) * time.Second)
+	return nil
 }
 
 // CheckHeartbeat prevents a follower from becoming a candidate
-func (ServerState *State) CheckHeartbeat() {
+func (ServerState *State) CheckHeartbeat(args *SafeDummyType, response *SafeDummyType) error {
 	for range ServerState.Heartbeat.C {
 		if ServerState.State == follower {
 			// fmt.Println("I AM FOLLOWER", ServerState.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
 			ServerState.State = candidate
-			ServerState.ResetElectionTimeout()
+			ServerState.ResetElectionTimeout(&dummyArgs, &dummyResp)
 		}
 	}
-
+	return nil
 }
 
 // CheckElectionTimeout counts votes and allows a candidate to become a leader
-func (ServerState *State) CheckElectionTimeout() {
+func (ServerState *State) CheckElectionTimeout(args *SafeDummyType, response *SafeDummyType) error {
 	time.Sleep(15 * time.Second)
 	for range ServerState.ElectionTimeout.C {
 		if ServerState.State == candidate {
@@ -91,7 +100,7 @@ func (ServerState *State) CheckElectionTimeout() {
 			// fmt.Println("I AM CANDIDATE", ServerState.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
 			ServerState.CurrentTerm = ServerState.CurrentTerm + 1
 			ServerState.VotedFor = ServerState.CandidateID
-			ServerState.ResetElectionTimeout()
+			ServerState.ResetElectionTimeout(&dummyArgs, &dummyResp)
 
 			// Instance of ReqVote
 			term := 0
@@ -136,14 +145,15 @@ func (ServerState *State) CheckElectionTimeout() {
 					ServerState.NextIndex[i] = len(ServerState.Log) + 1
 				}
 			} else {
-				ServerState.ResetElectionTimeout()
+				ServerState.ResetElectionTimeout(&dummyArgs, &dummyResp)
 			}
 		}
 	}
+	return nil
 }
 
 // SendHeartbeat is called by leader
-func (ServerState *State) SendHeartbeat() {
+func (ServerState *State) SendHeartbeat(args *SafeDummyType, response *SafeDummyType) error {
 	time.Sleep(15 * time.Second)
 	for {
 		if ServerState.State == leader {
@@ -201,7 +211,7 @@ func (ServerState *State) HandleRequestVote(args *ReqVote, response *RequestVote
 		ServerState.CurrentTerm = args.Term
 		ServerState.VotedFor = noVote
 		ServerState.State = follower
-		ServerState.ResetElectionTimeout()
+		ServerState.ResetElectionTimeout(&dummyArgs, &dummyResp)
 		stepDown = true
 	}
 
@@ -235,8 +245,8 @@ func (ServerState *State) HandleRequestVote(args *ReqVote, response *RequestVote
 	// If all good till now, VOTE!!
 	ServerState.VotedFor = args.CandidateID
 	fmt.Printf("Node %s: Voted node%s, term: %d, comIdx:%d\n", ServerState.CandidateID, args.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
-	ServerState.ResetElectionTimeout()
-	ServerState.ResetHeartbeat()
+	ServerState.ResetElectionTimeout(&dummyArgs, &dummyResp)
+	ServerState.ResetHeartbeat(&dummyArgs, &dummyResp)
 	response.Term = ServerState.CurrentTerm
 	response.VoteGranted = true
 	response.Reason = ""
@@ -289,7 +299,7 @@ func (ServerState *State) HandleAppendEntries(args *AppEntry, response *AppendEn
 	// fmt.Println(stepDown, ServerState.CurrentTerm)
 	// fmt.Println("Recieved heartbeat from", args.LeaderID, ServerState.CurrentTerm, ServerState.CommitIndex)
 
-	ServerState.ResetHeartbeat()
+	ServerState.ResetHeartbeat(&dummyArgs, &dummyResp)
 
 	if stepDown == true {
 		ServerState.State = follower
@@ -371,15 +381,15 @@ func main() {
 	}
 
 	// Does everything a follower has to do
-	go ServerState.CheckHeartbeat()
+	go ServerState.CheckHeartbeat(&dummyArgs, &dummyResp)
 
 	// Does everything a candidate has to do
-	go ServerState.CheckElectionTimeout()
+	go ServerState.CheckElectionTimeout(&dummyArgs, &dummyResp)
 
 	// Does everything a leader has to do
-	go ServerState.SendHeartbeat()
+	go ServerState.SendHeartbeat(&dummyArgs, &dummyResp)
 
-	go ServerState.WriteFile()
+	go ServerState.WriteFile(&dummyArgs, &dummyResp)
 
 	vrpc.ServeRPCConn(server, l, logger, options)
 	// err := http.ListenAndServe(os.Args[2], nil)
