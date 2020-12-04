@@ -74,7 +74,7 @@ func (ServerState *State) ResetElectionTimeout() {
 func (ServerState *State) CheckHeartbeat() {
 	for range ServerState.Heartbeat.C {
 		if ServerState.State == follower {
-			fmt.Println("I AM FOLLOWER", ServerState.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
+			// fmt.Println("I AM FOLLOWER", ServerState.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
 			ServerState.State = candidate
 			ServerState.ResetElectionTimeout()
 		}
@@ -87,7 +87,8 @@ func (ServerState *State) CheckElectionTimeout() {
 	time.Sleep(15 * time.Second)
 	for range ServerState.ElectionTimeout.C {
 		if ServerState.State == candidate {
-			fmt.Println("I AM CANDIDATE", ServerState.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
+			fmt.Printf("Node %s: Candidate, term: %d, comIdx: %d\n", ServerState.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
+			// fmt.Println("I AM CANDIDATE", ServerState.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
 			ServerState.CurrentTerm = ServerState.CurrentTerm + 1
 			ServerState.VotedFor = ServerState.CandidateID
 			ServerState.ResetElectionTimeout()
@@ -106,7 +107,7 @@ func (ServerState *State) CheckElectionTimeout() {
 				LastLogTerm:  term,
 			}
 
-			// implement for loop to send request
+			// request other nodes to vote and gather their votes
 			totVotes := 0
 			for _, ip := range ips {
 				client, err := vrpc.RPCDial("tcp", ip, logger, options)
@@ -116,18 +117,18 @@ func (ServerState *State) CheckElectionTimeout() {
 
 				var response RequestVoteResponse
 
-				// TODO: Need to change this to client.Go() and make it asynchronous
-				_ = client.Call("State.HandleRequestVote",
-					request,
-					&response)
-				// fmt.Println(response.VoteGranted, response.Reason, ServerState.CurrentTerm)
+				_ = client.Call("State.HandleRequestVote", request, &response)
+
 				if response.VoteGranted {
 					totVotes++
 				}
 				_ = client.Close()
 			}
+
+			// if we have sufficient votes become a leader
 			if totVotes >= 3 {
 				ServerState.State = leader
+				fmt.Printf("Node %s: Leader, term: %d, comIdx: %d\n", ServerState.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
 
 				// Change NextIndex and MatchIndex
 				ServerState.MatchIndex = []int{0, 0, 0, 0, 0}
@@ -146,7 +147,7 @@ func (ServerState *State) SendHeartbeat() {
 	time.Sleep(15 * time.Second)
 	for {
 		if ServerState.State == leader {
-			fmt.Println("I AM LEADER", ServerState.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
+			// fmt.Println("I AM LEADER", ServerState.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
 			// Heartbeat with no entries
 			var entries []Entry
 			// Instance of AppEntry
@@ -182,66 +183,6 @@ func (ServerState *State) SendHeartbeat() {
 		}
 	}
 }
-
-// // Client Sends this
-// func (ServerState *State) ClientMessage(args *string, response *ClientMessgaeResponse) error {
-// 	if ServerState.State != leader {
-// 		response.Response = "NOT LEADER"
-// 		fmt.Println("request -- leader")
-// 		return nil
-// 	}
-
-// 	entry := Entry{
-// 		Content:  *args,
-// 		Index:    len(ServerState.Log),
-// 		Term:     ServerState.CurrentTerm,
-// 		Commited: false}
-// 	EntryArr := []Entry{}
-// 	EntryArr = append(EntryArr, entry)
-
-// 	term := 0
-// 	if len(ServerState.Log) != 0 {
-// 		term = ServerState.Log[len(ServerState.Log)-1].Term
-// 	}
-
-// 	request := AppEntry{
-// 		Term:         ServerState.CurrentTerm,
-// 		LeaderID:     ServerState.CandidateID,
-// 		PrevLogIndex: len(ServerState.Log) - 1,
-// 		PrevLogTerm:  term,
-// 		Entries:      EntryArr,
-// 		LeaderCommit: ServerState.CommitIndex,
-// 	}
-
-// 	// implement for loop to send request
-// 	ans := 0
-// 	for _, ip := range ips {
-// 		client, err := vrpc.RPCDial("tcp", ip, logger, options)
-// 		if err != nil {
-// 			continue
-// 		}
-
-// 		var response1 AppendEntriesResponse
-
-// 		// TODO: Need to change this to client.Go and make it asynchronous
-// 		_ = client.Call("State.HandleAppendEntries",
-// 			request,
-// 			&response1)
-// 		_ = client.Close()
-// 		if response1.Success == true {
-// 			ans++
-// 		}
-// 	}
-// 	if ans > 2 {
-// 		response.Response = "TRUE " + strconv.Itoa(len(ServerState.Log))
-// 		fmt.Println("LEADER")
-// 		ServerState.CommitIndex++
-// 		return nil
-// 	} else {
-// 		response.Response = "FALSE NO VOTES"
-// 	}
-// 	return nil
-// }
 
 // HandleRequestVote function
 func (ServerState *State) HandleRequestVote(args *ReqVote, response *RequestVoteResponse) error {
@@ -293,7 +234,7 @@ func (ServerState *State) HandleRequestVote(args *ReqVote, response *RequestVote
 
 	// If all good till now, VOTE!!
 	ServerState.VotedFor = args.CandidateID
-	fmt.Println("Voted For", args.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
+	fmt.Printf("Node %s: Voted node%s, term: %d, comIdx:%d\n", ServerState.CandidateID, args.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
 	ServerState.ResetElectionTimeout()
 	ServerState.ResetHeartbeat()
 	response.Term = ServerState.CurrentTerm
@@ -346,9 +287,8 @@ func (ServerState *State) HandleAppendEntries(args *AppEntry, response *AppendEn
 
 	// ========================= DEBUG ======================
 	// fmt.Println(stepDown, ServerState.CurrentTerm)
-	fmt.Println("Recieved heartbeat from", args.LeaderID, ServerState.CurrentTerm, ServerState.CommitIndex)
+	// fmt.Println("Recieved heartbeat from", args.LeaderID, ServerState.CurrentTerm, ServerState.CommitIndex)
 
-	// TODO: Implement timer election
 	ServerState.ResetHeartbeat()
 
 	if stepDown == true {

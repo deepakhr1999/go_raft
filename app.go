@@ -6,7 +6,6 @@ package main
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/DistributedClocks/GoVector/govec/vrpc"
 )
@@ -73,21 +72,19 @@ func (ServerState *State) ClientMessage(args *ClientMessage, response *ClientMes
 
 		var response1 AppendEntriesResponse
 
-		// TODO: Need to change this to client.Go and make it asynchronous
-		_ = client.Call("State.HandleAppendEntries",
-			request,
-			&response1)
+		_ = client.Call("State.HandleAppendEntries", request, &response1)
 		_ = client.Close()
 		if response1.Success == true {
 			ans++
 		}
 	}
 	if ans > 2 {
-		response.Response = "TRUE " + strconv.Itoa(len(ServerState.Log))
-		fmt.Println("LEADER")
+		// response.Response = "TRUE " + strconv.Itoa(len(ServerState.Log))
+		// fmt.Println("LEADER")
+		response.Response = fmt.Sprintf("Register success: user %s was added to the database", args.Name)
 		ServerState.CommitIndex++
 	} else {
-		response.Response = "FALSE NO VOTES"
+		response.Response = fmt.Sprintf("Register failed: user %s not committed, lack of votes", args.Name)
 	}
 	return nil
 }
