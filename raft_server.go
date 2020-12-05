@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 
@@ -31,7 +33,7 @@ var ips = []string{
 	"127.0.0.1:7171",
 	"127.0.0.1:8181",
 }
-var writeTicker = *time.NewTicker(30 * time.Second)
+var writeTicker = *time.NewTicker(2 * time.Second)
 var options = govec.GetDefaultLogOptions()
 var logger = govec.InitGoVector("server"+os.Args[2], "logs/node"+os.Args[2], govec.GetDefaultConfig())
 
@@ -45,24 +47,19 @@ var dummyResp = SafeDummyType{
 // WriteFile write the logs to the file
 func (ServerState *State) WriteFile(args *SafeDummyType, response *SafeDummyType) error {
 	for range writeTicker.C {
-		err := os.Remove("test" + ServerState.CandidateID + ".txt")
+		writable := PersistentStorage{
+			VotedFor:    ServerState.VotedFor,
+			Log:         ServerState.Log,
+			CommitIndex: ServerState.CommitIndex,
+			LastApplied: ServerState.LastApplied,
+		}
+
+		b, _ := json.MarshalIndent(writable, "", " ")
+		filename := fmt.Sprintf("db/Node%s.json", ServerState.CandidateID)
+		err := ioutil.WriteFile(filename, b, 0644)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("Node%s: error writing file\n", ServerState.CandidateID)
 		}
-		f, err := os.Create("test" + ServerState.CandidateID + ".txt")
-		if err != nil {
-			fmt.Println(err)
-			return nil
-		}
-		for _, entry := range ServerState.Log {
-			_, err = f.WriteString(entry.Content + "\n")
-			if err != nil {
-				fmt.Println(err)
-				f.Close()
-				return nil
-			}
-		}
-		f.Close()
 	}
 	return nil
 }
@@ -346,6 +343,7 @@ func main() {
 		This leads to anarchy.
 	*/
 	rand.Seed(time.Now().UTC().UnixNano()) // fix for anarchy is randomness
+
 	// Include all variables for server state
 	var MyLog []Entry
 	nextIndex := []int{1, 1, 1, 1, 1}
@@ -373,6 +371,18 @@ func main() {
 		NextIndex:  nextIndex,
 		MatchIndex: matchIndex}
 
+	filename := fmt.Sprintf("db/Node%s.json", os.Args[1])
+	if _, err := os.Stat(filename); err == nil {
+		//change the initialization if the file exists
+		storageAsString, _ := ioutil.ReadFile(filename)
+
+		storage := new(PersistentStorage)
+		json.Unmarshal(storageAsString, &storage)
+		ServerState.VotedFor = storage.VotedFor
+		ServerState.Log = storage.Log
+		ServerState.CommitIndex = storage.CommitIndex
+		ServerState.LastApplied = storage.LastApplied
+	}
 	server := rpc.NewServer()
 
 	// rpc.Register(ServerState)

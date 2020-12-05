@@ -11,12 +11,20 @@ type ClientMessage struct {
 	Pass   string
 }
 
+//PersistentStorage is for database
+type PersistentStorage struct {
+	VotedFor    string  `json:"votedFor"`
+	Log         []Entry `json:"log"`
+	CommitIndex int     `json:"commitIndex"`
+	LastApplied int     `json:"lastApplied"`
+}
+
 // Entry represents Log entry
 type Entry struct {
-	Content  string
-	Index    int
-	Term     int
-	Commited bool
+	Content  string `json:"content"`
+	Index    int    `json:"index"`
+	Term     int    `json:"term"`
+	Commited bool   `json:"commited"`
 }
 
 // State persists on all servers
