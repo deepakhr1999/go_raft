@@ -93,7 +93,7 @@ func (ServerState *State) CheckHeartbeat(args *SafeDummyType, response *SafeDumm
 
 // CheckElectionTimeout counts votes and allows a candidate to become a leader
 func (ServerState *State) CheckElectionTimeout(args *SafeDummyType, response *SafeDummyType) error {
-	time.Sleep(15 * time.Second)
+	time.Sleep(5 * time.Second)
 	for range ServerState.ElectionTimeout.C {
 		if ServerState.State == candidate {
 			fmt.Printf("Node %s: Candidate, term: %d, comIdx: %d\n", ServerState.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
