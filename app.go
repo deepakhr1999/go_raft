@@ -19,6 +19,8 @@ func (ServerState *State) ClientMessage(args *ClientMessage, response *ClientMes
 		return nil
 	}
 
+	//show that the method was called
+	fmt.Printf("Client called %s method, args=%s,%s \n", args.Method, args.Name, args.Pass)
 	// if method is login, then iterate over all logs and check for string
 	if args.Method == "login" {
 		target := fmt.Sprintf("%s %s", args.Name, args.Pass)
