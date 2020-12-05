@@ -58,8 +58,8 @@ func main() {
 		var response ClientMessgaeResponse
 
 		// TODO: Need to change this to client.Go and make it asynchronous
-		_ = client.Call("State.ClientMessage", args, &response)
-		_ = client.Close()
+		client.Call("State.ClientMessage", args, &response)
+		client.Close()
 
 		if response.Response != "NOT LEADER" {
 			connRefused = false

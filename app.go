@@ -74,8 +74,8 @@ func (ServerState *State) ClientMessage(args *ClientMessage, response *ClientMes
 
 		var response1 AppendEntriesResponse
 
-		_ = client.Call("State.HandleAppendEntries", request, &response1)
-		_ = client.Close()
+		client.Call("State.HandleAppendEntries", request, &response1)
+		client.Close()
 		if response1.Success == true {
 			ans++
 		}
@@ -85,6 +85,7 @@ func (ServerState *State) ClientMessage(args *ClientMessage, response *ClientMes
 		// fmt.Println("LEADER")
 		response.Response = fmt.Sprintf("Register success: user %s was added to the database", args.Name)
 		ServerState.CommitIndex++
+		logger.LogLocalEvent("Commited registration", options)
 	} else {
 		response.Response = fmt.Sprintf("Register failed: user %s not committed, lack of votes", args.Name)
 	}

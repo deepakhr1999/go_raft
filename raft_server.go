@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
+	"os/exec"
 
 	"net"
 	"net/rpc"
@@ -83,6 +84,11 @@ func (ServerState *State) ResetElectionTimeout(args *SafeDummyType, response *Sa
 func (ServerState *State) CheckHeartbeat(args *SafeDummyType, response *SafeDummyType) error {
 	for range ServerState.Heartbeat.C {
 		if ServerState.State == follower {
+			if len(os.Args) == 4 && os.Args[3] == "leader" {
+				if !(ServerState.CandidateID == "1" || ServerState.CandidateID == "100") {
+					continue
+				}
+			}
 			// fmt.Println("I AM FOLLOWER", ServerState.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
 			ServerState.State = candidate
 			ServerState.ResetElectionTimeout(&dummyArgs, &dummyResp)
@@ -156,6 +162,8 @@ func (ServerState *State) SendHeartbeat(args *SafeDummyType, response *SafeDummy
 	time.Sleep(15 * time.Second)
 	for {
 		if ServerState.State == leader {
+			// we send heart beats like so log the event
+			logger.LogLocalEvent("Became leader", options)
 			// Heartbeat with no entries
 			var entries []Entry
 			// Instance of AppEntry
@@ -182,11 +190,19 @@ func (ServerState *State) SendHeartbeat(args *SafeDummyType, response *SafeDummy
 
 				var response AppendEntriesResponse
 
-				// TODO: Need to change this to client.Go and make it asynchronous
-				_ = client.Call("State.HandleAppendEntries",
-					request,
-					&response)
-				_ = client.Close()
+				client.Call("State.HandleAppendEntries", request, &response)
+				client.Close()
+			}
+
+			// stop the server for shiviz
+			if len(os.Args) == 4 && os.Args[3] == "leader" {
+				cmd := exec.Command("./stop_raft.sh")
+				cmd.Run()
+			}
+
+			if len(os.Args) == 4 && os.Args[3] == "client" && ServerState.CommitIndex != 0 {
+				cmd := exec.Command("./stop_raft.sh")
+				cmd.Run()
 			}
 		}
 	}
@@ -248,11 +264,17 @@ func (ServerState *State) HandleRequestVote(args *ReqVote, response *RequestVote
 	response.Term = ServerState.CurrentTerm
 	response.VoteGranted = true
 	response.Reason = ""
+	logger.LogLocalEvent(fmt.Sprintf("Voted Node %s", args.CandidateID), options)
 	return nil
 }
 
 // HandleAppendEntries is called by everyone when leader sends request
 func (ServerState *State) HandleAppendEntries(args *AppEntry, response *AppendEntriesResponse) error {
+	// if heart beat is detected and we stop for shiviz
+	if len(os.Args) == 4 && os.Args[3] == "leader" {
+		logger.LogLocalEvent("Received HeartBeat", options)
+	}
+
 	// if I leader and my heart beat then reject haha
 	if ServerState.CandidateID == args.LeaderID && len(args.Entries) == 0 {
 		response.Term = ServerState.CurrentTerm
