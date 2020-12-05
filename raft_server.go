@@ -33,7 +33,7 @@ var ips = []string{
 	"127.0.0.1:7171",
 	"127.0.0.1:8181",
 }
-var writeTicker = *time.NewTicker(2 * time.Second)
+var writeTicker = *time.NewTicker(25 * time.Second)
 var options = govec.GetDefaultLogOptions()
 var logger = govec.InitGoVector("server"+os.Args[2], "logs/node"+os.Args[2], govec.GetDefaultConfig())
 
@@ -93,7 +93,7 @@ func (ServerState *State) CheckHeartbeat(args *SafeDummyType, response *SafeDumm
 
 // CheckElectionTimeout counts votes and allows a candidate to become a leader
 func (ServerState *State) CheckElectionTimeout(args *SafeDummyType, response *SafeDummyType) error {
-	time.Sleep(5 * time.Second)
+	time.Sleep(15 * time.Second)
 	for range ServerState.ElectionTimeout.C {
 		if ServerState.State == candidate {
 			fmt.Printf("Node %s: Candidate, term: %d, comIdx: %d\n", ServerState.CandidateID, ServerState.CurrentTerm, ServerState.CommitIndex)
