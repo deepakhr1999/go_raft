@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GORAFT</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans&family=Roboto&display=swap" rel="stylesheet">
+    <script>
+        async function bring(path, arg){
+            url = `http://localhost:5000/${path}/${arg}`
+            return new Promise((resolve, reject)=>{
+                var http = new XMLHttpRequest();
+                http.open("GET", url, true);
+                // http.setRequestHeader('Content-type', 'application/json');
+
+                http.onreadystatechange = function() {
+                    try{
+                        if(http.readyState == 4 && http.status == 200) 
+                            resolve(http.responseText)            
+                    }catch(err){
+                        reject(err)
+                    }
+                }
+                http.send()
+            })
+        }
+    </script>
+    <style>
+        *{
+            font-family: 'Roboto', sans-serif;
+        }
+        body{
+            padding: 2.5em;
+        }
+        h1{
+            font-size: 3em;
+            font-family: 'Open Sans', sans-serif;
+            margin: 0em auto;
+            width: 100%;
+            text-align: center;
+        }
+        .display{
+            display: flex;
+            flex-wrap: wrap;
+        }
+        pre{
+            padding: 1em;
+        }
+        legend{
+            font-family: 'Open Sans', sans-serif;
+            text-align: center;
+            font-size: 1.8em;
+        }
+        label, button, input{
+            font-size: 1.5em;
+        }
+        button, input{
+            width: 100%;
+        }
+        select{
+            font-size: 1.5em;
+        }
+
+        .log{
+            width: 100%;
+            margin: 1em auto;
+            text-align: center;
+            padding: 0.75em;
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+    </style>
+</head>
+<body>
+    <h1>GoRaft Dashboard</h1>
+    <div style="width: 30em;margin-top: 5em;">
+        <hr>
+        <legend>Call function on cluster</legend>
+        <hr>
+        
+        <label>Name: </label><br><input type="text" id="name"><br><br>
+        <label>Pass: </label><br><input type="text" id="pass"><br><br>
+        <label>Function: </label>
+        <select id="function" style="margin-left: 1em;">
+            <option value="register" selected>Register</option>
+            <option value="login">Login</option>
+        </select>
+        <br><br>
+        <button onclick="exec()">Go</button>
+        <div class="log" id='output'>Output will appear here</div>
+    </div>
+    <div class="display">
+        <pre id='7070'></pre>
+        <pre id='7171'></pre>
+        <pre id='8080'></pre>
+        <pre id='8181'></pre>
+        <pre id='9090'></pre>
+    </div>
+    <script>
+        const eventLoop = () => {
+            '7070 7171 8080 8181 9090'.split(' ').forEach(port => {
+                bring('file', port)
+                .then(text => {
+                    document.getElementById( port).innerHTML = text
+                })
+            })
+        }
+        const exec = () => {
+            name = document.getElementById('name').value
+            pass = document.getElementById('pass').value
+            meth = document.getElementById('function').value
+            bring('cmd', `${meth} ${name} ${pass}`).then(text=>{
+                document.getElementById('output').innerHTML = text
+            })
+        }
+        setInterval(eventLoop, 500)
+    </script>
+</body>
+</html>

@@ -2,12 +2,20 @@ package main
 
 import (
 	"fmt"
-	// "net/rpc"
 	"os"
+
 	"github.com/DistributedClocks/GoVector/govec"
 	"github.com/DistributedClocks/GoVector/govec/vrpc"
 )
 
+// ClientMessage has the request args
+type ClientMessage struct {
+	Method string
+	Name   string
+	Pass   string
+}
+
+// ClientMessgaeResponse has the response string
 type ClientMessgaeResponse struct {
 	Response string
 }
@@ -24,19 +32,42 @@ var options = govec.GetDefaultLogOptions()
 var logger = govec.InitGoVector("client", "client", govec.GetDefaultConfig())
 
 func main() {
+	if len(os.Args) != 4 {
+		fmt.Println("Usage: ./client <register|login> <user> <password>")
+		return
+	}
+
+	if os.Args[1] != "register" && os.Args[1] != "login" {
+		fmt.Println("Usage: ./client <register|login> <user> <password>")
+		return
+	}
+
+	args := ClientMessage{
+		Method: os.Args[1],
+		Name:   os.Args[2],
+		Pass:   os.Args[3],
+	}
+
+	connRefused := true
 	for _, ip := range ips {
 		client, err := vrpc.RPCDial("tcp", ip, logger, options)
-		if err!=nil{
+		if err != nil {
 			continue
 		}
 
 		var response ClientMessgaeResponse
 
 		// TODO: Need to change this to client.Go and make it asynchronous
-		_ = client.Call("State.ClientMessage",
-							os.Args[1],
-							&response)
+		_ = client.Call("State.ClientMessage", args, &response)
 		_ = client.Close()
-		fmt.Println(response.Response)
+
+		if response.Response != "NOT LEADER" {
+			connRefused = false
+			fmt.Println(response.Response)
+		}
+	}
+
+	if connRefused {
+		fmt.Println("Couldn't connect to any nodes on raft")
 	}
 }
